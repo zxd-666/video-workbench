@@ -90,7 +90,7 @@ def _gemini_aspect_ratio(size: str) -> str:
 
 
 def _download(url: str, out_path: Path) -> None:
-    req = urllib.request.Request(url, headers={"User-Agent": "RenshengFuben/0.1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "video-workbench/0.1"})
     with urllib.request.urlopen(req, timeout=120) as resp:
         out_path.write_bytes(resp.read())
 
