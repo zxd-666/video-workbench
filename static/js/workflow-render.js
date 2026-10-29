@@ -1,0 +1,284 @@
+import { clampProgress, introImageSecondsValue, sleep } from "./workflow-utils.js";
+
+export function createRenderWorkflow({ els, ui, api, settings, storyView, projectStore }) {
+  let lastJianyingDraftDir = "";
+
+  function hasImage(shot) {
+    return Boolean(shot?.image_url || shot?.image_path);
+  }
+
+  function renderReadiness(story) {
+    const shots = Array.isArray(story?.shots) ? story.shots : [];
+    if (!shots.length) {
+      return { ok: false, message: "请先完成分镜，再渲染 MP4。" };
+    }
+    const missing = shots
+      .map((shot, index) => hasImage(shot) ? -1 : index + 1)
+      .filter((index) => index > 0);
+    if (missing.length) {
+      const preview = missing.slice(0, 8).join("、");
+      const suffix = missing.length > 8 ? " 等" : "";
+      return {
+        ok: false,
+        message: `还有 ${missing.length} 个分镜图片未生成：第 ${preview}${suffix} 个。请先生成完所有分镜图片。`,
+      };
+    }
+    const cover = story?.cover || null;
+    if (!cover) {
+      return { ok: false, message: "请先在分镜工作台选择一张图片作为封面，再渲染 MP4。" };
+    }
+    const coverIndex = Number(cover.source_shot_index);
+    if (!Number.isInteger(coverIndex) || coverIndex < 0 || coverIndex >= shots.length) {
+      return { ok: false, message: "封面未正确选择，请先在分镜工作台重新选择封面。" };
+    }
+    if (!hasImage(cover) && !hasImage(shots[coverIndex])) {
+      return { ok: false, message: "封面图片未生成，请先选择一张已生成的分镜图片作为封面。" };
+    }
+    return { ok: true, message: "" };
+  }
+
+  function updateRenderProgress(job, options = {}) {
+    if (!els.renderProgress) return;
+    const currentProgress = Number.parseInt(els.renderProgressPercent?.textContent || "0", 10) / 100;
+    const progress = clampProgress(job?.progress ?? currentProgress);
+    const percent = Math.round(progress * 100);
+    const label = job?.detail || job?.stage || "等待渲染";
+    els.renderProgress.hidden = false;
+    els.renderProgress.classList.toggle("error", options.error || job?.status === "error");
+    if (els.renderProgressBar) els.renderProgressBar.style.width = `${percent}%`;
+    if (els.renderProgressPercent) els.renderProgressPercent.textContent = `${percent}%`;
+    if (els.renderProgressText) els.renderProgressText.textContent = label;
+  }
+
+  function renderVoiceConfig() {
+    if (els.ttsProvider?.value === "minimax" || els.ttsProvider?.value === "doubao") {
+      return {
+        voice: els.voice?.value || "zh-CN-YunxiNeural",
+        rate: els.rate?.value || "+12%",
+        ttsPreset: els.ttsProvider.value,
+        ttsProvider: els.ttsProvider.value,
+        ttsBaseUrl: els.ttsBaseUrl?.value.trim() || "",
+        ttsApiKey: els.ttsApiKey?.value.trim() || "",
+        ttsGroupId: els.ttsGroupId?.value.trim() || "",
+        ttsModel: els.ttsModel?.value.trim() || "",
+        ttsVoiceId: els.ttsVoiceId?.value.trim() || "",
+        ttsSpeed: Number.parseFloat(els.ttsSpeed?.value || "1") || 1,
+        ttsEmotion: els.ttsEmotion?.value || "",
+        ttsLanguageBoost: els.ttsLanguageBoost?.value || "Chinese",
+      };
+    }
+    const option = els.ttsPreset?.selectedOptions?.[0];
+    if (option?.dataset?.voice && option?.dataset?.rate) {
+      return {
+        voice: option.dataset.voice,
+        rate: option.dataset.rate,
+        ttsPreset: els.ttsPreset.value,
+        ttsProvider: "edge",
+      };
+    }
+    return {
+      voice: els.voice.value,
+      rate: els.rate.value,
+      ttsPreset: els.ttsPreset?.value || "custom",
+      ttsProvider: "edge",
+    };
+  }
+
+  function withCacheBust(url) {
+    const value = String(url || "");
+    if (!value) return value;
+    return `${value}${value.includes("?") ? "&" : "?"}v=${Date.now()}`;
+  }
+
+  function jianyingDraftDirFromResult() {
+    if (lastJianyingDraftDir) return lastJianyingDraftDir;
+    try {
+      const data = JSON.parse(els.result?.textContent || "{}");
+      const draftDir = data?.draft_dir || data?.source_draft_dir || data?.result?.draft_dir || data?.result?.source_draft_dir || "";
+      return typeof draftDir === "string" ? draftDir : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function setJianyingEditVisible(visible) {
+    if (els.editJianying) els.editJianying.hidden = !visible;
+  }
+
+  function readRenderableStory() {
+    try {
+      const story = storyView.read();
+      const readiness = renderReadiness(story);
+      if (!readiness.ok) {
+        return { story, error: readiness.message };
+      }
+      return { story, error: "" };
+    } catch (err) {
+      return { story: null, error: `分镜数据无效：${String(err.message || err)}` };
+    }
+  }
+
+  function buildRenderPayload(story, options = {}) {
+    const voiceConfig = renderVoiceConfig();
+    return {
+      story,
+      voice: voiceConfig.voice,
+      rate: voiceConfig.rate,
+      tts_preset: voiceConfig.ttsPreset,
+      tts_provider: voiceConfig.ttsProvider,
+      tts_base_url: voiceConfig.ttsBaseUrl || "",
+      tts_api_key: voiceConfig.ttsApiKey || "",
+      tts_group_id: voiceConfig.ttsGroupId || "",
+      tts_model: voiceConfig.ttsModel || "",
+      tts_voice_id: voiceConfig.ttsVoiceId || "",
+      tts_speed: voiceConfig.ttsSpeed || 1,
+      tts_emotion: voiceConfig.ttsEmotion || "",
+      tts_language_boost: voiceConfig.ttsLanguageBoost || "",
+      project_id: projectStore.mediaProjectId(),
+      cleanup_intermediate: options.cleanupIntermediate ?? true,
+      force_render: options.forceRender ?? true,
+      intro_template: els.introTemplate?.value || "none",
+      intro_image_seconds: introImageSecondsValue(els),
+      image_size: els.imageSize?.value || "9:16",
+      bgm_id: els.bgmSelect?.value || "none",
+      intro_sfx_id: els.introSfxSelect?.value || "default",
+    };
+  }
+
+  async function renderVideo() {
+    settings.persist();
+    const { story, error } = readRenderableStory();
+    if (error) {
+      ui.setStatus("暂不能渲染", "error");
+      if (els.result) els.result.textContent = error;
+      updateRenderProgress({ stage: "暂不能渲染", detail: error, status: "error" }, { error: true });
+      return;
+    }
+    ui.setBusy(true);
+    ui.setStatus("提交渲染", "busy");
+    updateRenderProgress({ progress: 0, stage: "提交渲染", detail: "正在提交渲染任务" });
+    els.openVideo.hidden = true;
+    setJianyingEditVisible(false);
+    els.preview.removeAttribute("src");
+    try {
+      await projectStore.ensureSaved();
+      const payload = buildRenderPayload(story, { cleanupIntermediate: true, forceRender: true });
+      const job = await api.postJson("/api/render/jobs", payload);
+      updateRenderProgress(job);
+      let data = null;
+      for (;;) {
+        const status = await api.fetchJson(`/api/render/jobs/${encodeURIComponent(job.job_id)}`);
+        updateRenderProgress(status);
+        els.result.textContent = JSON.stringify(status, null, 2);
+        if (status.status === "complete") {
+          data = status.result;
+          break;
+        }
+        if (status.status === "error") {
+          updateRenderProgress(status, { error: true });
+          throw new Error(status.error || "渲染失败");
+        }
+        const percent = Math.round(clampProgress(status.progress) * 100);
+        ui.setStatus(status.status === "running" ? `渲染 ${percent}%` : "排队中", "busy");
+        await sleep(2000);
+      }
+      els.result.textContent = JSON.stringify(data, null, 2);
+      els.preview.src = withCacheBust(data.video);
+      els.openVideo.href = data.video;
+      els.openVideo.hidden = false;
+      await projectStore.saveNow();
+      updateRenderProgress({ progress: 1, stage: "渲染完成", detail: "成片已导出" });
+      ui.setStatus("完成");
+    } catch (err) {
+      ui.setStatus("出错", "error");
+      updateRenderProgress({ stage: "渲染失败", detail: String(err.message || err), status: "error" }, { error: true });
+      els.result.textContent = String(err.message || err);
+    } finally {
+      ui.setBusy(false);
+    }
+  }
+
+  async function exportJianyingDraft() {
+    settings.persist();
+    const { story, error } = readRenderableStory();
+    if (error) {
+      ui.setStatus("暂不能导出", "error");
+      if (els.result) els.result.textContent = error;
+      updateRenderProgress({ stage: "暂不能导出", detail: error, status: "error" }, { error: true });
+      return;
+    }
+    ui.setBusy(true);
+    ui.setStatus("导出剪映草稿", "busy");
+    updateRenderProgress({ progress: 0.05, stage: "导出剪映草稿", detail: "正在准备时间轴素材" });
+    setJianyingEditVisible(false);
+    try {
+      await projectStore.ensureSaved();
+      const payload = buildRenderPayload(story, { cleanupIntermediate: false, forceRender: false });
+      const job = await api.postJson("/api/jianying/drafts/jobs", payload);
+      updateRenderProgress(job);
+      let data = null;
+      for (;;) {
+        const status = await api.fetchJson(
+          `/api/jianying/drafts/jobs/${encodeURIComponent(job.job_id)}?project_id=${encodeURIComponent(job.project_id || "")}`,
+        );
+        updateRenderProgress(status);
+        els.result.textContent = JSON.stringify(status, null, 2);
+        if (status.status === "complete") {
+          data = status.result;
+          break;
+        }
+        if (status.status === "error") {
+          updateRenderProgress(status, { error: true });
+          throw new Error(status.error || "剪映草稿导出失败");
+        }
+        const percent = Math.round(clampProgress(status.progress) * 100);
+        ui.setStatus(status.status === "running" ? `导出 ${percent}%` : "排队中", "busy");
+        await sleep(2000);
+      }
+      els.result.textContent = JSON.stringify(data, null, 2);
+      lastJianyingDraftDir = data?.draft_dir || "";
+      setJianyingEditVisible(Boolean(lastJianyingDraftDir));
+      updateRenderProgress({ progress: 1, stage: "剪映草稿已导出", detail: data.draft_dir || data.draft_name });
+      await projectStore.saveNow();
+      ui.setStatus("完成");
+    } catch (err) {
+      ui.setStatus("出错", "error");
+      updateRenderProgress({ stage: "导出失败", detail: String(err.message || err), status: "error" }, { error: true });
+      els.result.textContent = String(err.message || err);
+    } finally {
+      ui.setBusy(false);
+    }
+  }
+
+  async function editJianyingDraft() {
+    const draftDir = jianyingDraftDirFromResult();
+    if (!draftDir) {
+      ui.setStatus("未找到剪映草稿", "error");
+      updateRenderProgress({ stage: "未找到剪映草稿", detail: "请先导出剪映草稿", status: "error" }, { error: true });
+      return;
+    }
+    ui.setBusy(true);
+    ui.setStatus("打开剪映", "busy");
+    updateRenderProgress({ progress: 0.98, stage: "打开剪映", detail: "正在同步到剪映草稿目录" });
+    try {
+      const data = await api.postJson("/api/jianying/drafts/open", { draft_dir: draftDir });
+      els.result.textContent = JSON.stringify(data, null, 2);
+      lastJianyingDraftDir = draftDir;
+      setJianyingEditVisible(true);
+      updateRenderProgress({ progress: 1, stage: "已发送到剪映", detail: data.message || data.jianying_draft_dir });
+      ui.setStatus("完成");
+    } catch (err) {
+      ui.setStatus("出错", "error");
+      updateRenderProgress({ stage: "打开失败", detail: String(err.message || err), status: "error" }, { error: true });
+      els.result.textContent = String(err.message || err);
+    } finally {
+      ui.setBusy(false);
+    }
+  }
+
+  return {
+    editJianyingDraft,
+    exportJianyingDraft,
+    renderVideo,
+  };
+}

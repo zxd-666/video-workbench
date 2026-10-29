@@ -1,0 +1,28 @@
+{
+  "id": "reality_stop_loss",
+  "label": "现实 · 止损断舍离型",
+  "short_label": "止损断舍",
+  "category": "人生副本 · 现实",
+  "description": "算清隐性成本后主动降杠杆，退出看起来体面的生活。",
+  "order": 30,
+  "opening": "带你体验100种人生副本。",
+  "theme": {
+    "label": "现实止损型",
+    "domain": "现实高压赛道、消费升级、债务杠杆、城市体面、健康透支和主动退出",
+    "direction": "主题要适合写主角通过生命账单核算，看清隐性成本后主动降杠杆、断舍离。",
+    "examples": "月薪三万却被车房榨干的白领、硬撑体面的城市中产、过度扩张的小店老板。",
+    "avoid": "不要写成田园牧歌、鸡汤治愈、逆袭爽文或超现实题材。"
+  },
+  "prompts": {
+    "copy": "prompts/copy_reality_stop_loss.md",
+    "copy_to_story": null,
+    "image_style": "prompts/image_style_life_copy.md",
+    "story_shots": "prompts/story_shots_life_copy.md"
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "life_copy_fast_cut",
+    "tts_preset": "male_fast"
+  }
+}

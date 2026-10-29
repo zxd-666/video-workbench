@@ -1,0 +1,28 @@
+{
+  "id": "knowledge_science",
+  "label": "通用 · 知识科普",
+  "short_label": "知识科普",
+  "category": "通用",
+  "description": "先给结论再拆机制，适合生活常识、消费陷阱和常见谣言辨析。",
+  "order": 210,
+  "opening": "",
+  "theme": {
+    "label": "通用 · 知识科普",
+    "domain": "可验证的日常知识：生理与健康常识、消费陷阱、生活中的物理化学现象、工具与效率方法、常见谣言辨析。",
+    "direction": "先给结论再拆机制，用生活场景解释原理，说明结论的适用边界，结尾给出今天就能执行的具体建议。",
+    "examples": "「为什么冬天静电特别多」「冰箱冷冻室为什么不能塞太满」「降噪耳机是怎么消掉噪音的」",
+    "avoid": "编造研究数据与专家背书、医疗诊断与用药建议、伪科学恐吓、绝对化疗效表述"
+  },
+  "prompts": {
+    "copy": "prompts/copy_knowledge_science.md",
+    "copy_to_story": null,
+    "image_style": null,
+    "story_shots": null
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "none",
+    "tts_preset": "female_clear"
+  }
+}

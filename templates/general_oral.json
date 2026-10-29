@@ -1,0 +1,28 @@
+{
+  "id": "general_oral",
+  "label": "通用 · 叙事口播",
+  "short_label": "叙事口播",
+  "category": "通用",
+  "description": "适合生活观察、职场、人物故事和情感观点，不依赖固定世界观。",
+  "order": 200,
+  "opening": "",
+  "theme": {
+    "label": "通用 · 叙事口播",
+    "domain": "普通人的真实生活观察：职场、家庭、通勤、租房、亲密关系、成长选择等日常题材，不需要奇幻设定。",
+    "direction": "从具体日常细节切入，靠事件推进情绪，结尾停在一个有余味的画面上；避免喊口号和空泛鸡汤。",
+    "examples": "「我妈把冰箱塞满的那天」「同事离职前的最后一条消息」「房租涨了之后我搬去了哪里」",
+    "avoid": "宏大叙事、行业分析、新闻播报式旁白、编造真实人物隐私"
+  },
+  "prompts": {
+    "copy": "prompts/copy_general_oral.md",
+    "copy_to_story": null,
+    "image_style": null,
+    "story_shots": null
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "none",
+    "tts_preset": "male_steady"
+  }
+}

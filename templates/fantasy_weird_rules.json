@@ -1,0 +1,28 @@
+{
+  "id": "fantasy_weird_rules",
+  "label": "超现实 · 规则怪谈型",
+  "short_label": "规则怪谈",
+  "category": "人生副本 · 超现实",
+  "description": "恐惧来自制度化约束，主角靠理解规则和计算代价活下来。",
+  "order": 100,
+  "opening": "带你体验100种人生副本。",
+  "theme": {
+    "label": "规则怪谈型",
+    "domain": "诡异规则、封闭场域、职位守则、禁忌条款、积分惩罚、信息差和生存选择",
+    "direction": "主题要围绕规则理解、试探成本和生存账本展开，恐惧来自制度化约束而不是血腥描写。",
+    "examples": "午夜便利店守则实习生、永不熄灯公寓管理员、无限商场导购、规则列车乘务员。",
+    "avoid": "不要写血腥猎奇细节，不要生成普通现实职业题，不要把规则写得随机混乱。"
+  },
+  "prompts": {
+    "copy": "prompts/copy_fantasy_weird_rules.md",
+    "copy_to_story": null,
+    "image_style": "prompts/image_style_life_copy.md",
+    "story_shots": "prompts/story_shots_life_copy.md"
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "life_copy_fast_cut",
+    "tts_preset": "male_fast"
+  }
+}

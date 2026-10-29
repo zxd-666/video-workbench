@@ -1,0 +1,28 @@
+{
+  "id": "product_planting",
+  "label": "商业 · 带货种草",
+  "short_label": "带货种草",
+  "category": "商业",
+  "description": "从使用麻烦切入，用三个可验证卖点讲清一款日用商品。",
+  "order": 300,
+  "opening": "",
+  "theme": {
+    "label": "商业 · 带货种草",
+    "domain": "真实存在的日用商品品类：厨房小家电、清洁工具、数码配件、收纳用品、个护用品等，围绕具体使用场景展开。",
+    "direction": "先还原使用麻烦，再让产品解决它；用三个可验证的卖点支撑，结尾明确适合谁、不适合谁，引导下一步动作。",
+    "examples": "「擦玻璃总是留水痕」「租房厨房没有抽油烟机」「通勤包总找不到钥匙」",
+    "avoid": "虚构价格销量库存与认证、绝对化用语、贬低同类品牌、承诺治疗或减肥效果"
+  },
+  "prompts": {
+    "copy": "prompts/copy_product_planting.md",
+    "copy_to_story": null,
+    "image_style": null,
+    "story_shots": null
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "fine",
+    "intro_template": "none",
+    "tts_preset": "female_clear"
+  }
+}

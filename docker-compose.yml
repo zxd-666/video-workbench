@@ -1,0 +1,20 @@
+name: video-workbench
+
+services:
+  video-workbench:
+    build: .
+    image: video-workbench:latest
+    container_name: video-workbench
+    restart: unless-stopped
+    ports:
+      # 只绑定本机，避免把无鉴权的工作台暴露到局域网。
+      # 需要局域网访问时改成 "7860:7860"（并自行承担风险）。
+      - "127.0.0.1:7860:7860"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      # 项目数据、上传素材、生成图片/视频都保存在这里
+      - ./workspace:/app/workspace

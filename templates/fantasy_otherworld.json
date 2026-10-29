@@ -1,0 +1,28 @@
+{
+  "id": "fantasy_otherworld",
+  "label": "超现实 · 异世界型",
+  "short_label": "异世界",
+  "category": "人生副本 · 超现实",
+  "description": "把异世界冒险写成高危外包工作，用账本拆掉奇幻滤镜。",
+  "order": 80,
+  "opening": "带你体验100种人生副本。",
+  "theme": {
+    "label": "异世界型",
+    "domain": "冒险者公会、魔法药水、装备折旧、系统任务、复活费用、队伍分成和传送门",
+    "direction": "主题要把异世界冒险写成高危外包工作，用经济账本拆掉奇幻滤镜。",
+    "examples": "签下公会长约的底层冒险者、靠系统续命的穿越者、背负装备贷的新手勇士。",
+    "avoid": "不要生成现实职业题，不要打败魔王拯救世界，不要机械降神。"
+  },
+  "prompts": {
+    "copy": "prompts/copy_fantasy_otherworld.md",
+    "copy_to_story": null,
+    "image_style": "prompts/image_style_life_copy.md",
+    "story_shots": "prompts/story_shots_life_copy.md"
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "life_copy_fast_cut",
+    "tts_preset": "male_fast"
+  }
+}

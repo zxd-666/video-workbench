@@ -1,0 +1,411 @@
+import {
+  COPY_PROMPT_VERSION,
+  COPY_TO_STORY_PROMPT_VERSION,
+  DEFAULT_IMAGE_SIZE,
+  DEFAULT_INTRO_TEMPLATE,
+  DEFAULT_STORYBOARD_GRANULARITY,
+  IMAGE_SIZES,
+  IMPROVE_IMAGE_PROMPT_VERSION,
+  INTRO_TEMPLATES,
+  PROJECT_PROGRESS_SAVE_INTERVAL_MS,
+  PROJECT_SAVE_DELAY_MS,
+  STORYBOARD_GRANULARITIES,
+  THEME_IDEA_PROMPT_VERSION,
+} from "./constants.js?v=20261029_image_concurrency";
+import { defaultTemplateId, isKnownTemplate, resolveTemplateId } from "./templates.js?v=20261030_defaults";
+import { escapeHtml } from "./html.js";
+
+export function createProjectStore({ els, ui, api, storyView, state, settings, setActiveTab, onStateApplied }) {
+  function selectedShotIndexes() {
+    return Array.from(state.selectedShots || []).sort((a, b) => a - b);
+  }
+
+  function resultVideoUrl(resultText) {
+    try {
+      const data = JSON.parse(resultText || "{}");
+      return typeof data.video === "string" ? data.video : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function resultJianyingDraftDir(resultText) {
+    try {
+      const data = JSON.parse(resultText || "{}");
+      const draftDir = data.draft_dir || data.source_draft_dir || data?.result?.draft_dir || data?.result?.source_draft_dir || "";
+      return typeof draftDir === "string" ? draftDir : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function currentRenderedVideoUrl() {
+    return els.preview?.getAttribute("src") || resultVideoUrl(els.result.textContent);
+  }
+
+  function applyRenderedVideo(url) {
+    const videoUrl = String(url || "").trim();
+    if (!els.preview || !els.openVideo) return;
+    if (!videoUrl) {
+      els.preview.removeAttribute("src");
+      els.openVideo.hidden = true;
+      els.openVideo.removeAttribute("href");
+      return;
+    }
+    els.preview.src = `${videoUrl}${videoUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+    els.openVideo.href = videoUrl;
+    els.openVideo.hidden = false;
+  }
+
+  function applyJianyingDraftAction(resultText) {
+    if (!els.editJianying) return;
+    els.editJianying.hidden = !resultJianyingDraftDir(resultText);
+  }
+
+  function projectState() {
+    const selectedShots = selectedShotIndexes();
+    const templateId = resolveTemplateId(
+      els.copyPromptPreset?.value || els.themeCopyPreset?.value || defaultTemplateId(),
+      { allowRandom: false },
+    );
+    return {
+      version: 1,
+      project_id: state.currentProjectId,
+      topic: els.topic.value,
+      theme_brief: els.themeBrief?.value || "",
+      theme_intro: els.themeIntro?.value || "",
+      theme_revision: els.themeRevision?.value || "",
+      active_tab: state.activeTab,
+      selected_shots: selectedShots,
+      selected_shot: selectedShots[0] ?? null,
+      copy_text: els.copyOutput.value,
+      story_json: els.editor.value,
+      story: storyView.readOrNull(),
+      reference_collection_id: els.projectReferenceCollection?.value || "",
+      auto_reference_enabled: Boolean(els.autoReferenceEnabled?.checked),
+      result_text: els.result.textContent,
+      rendered_video: currentRenderedVideoUrl(),
+      template_id: templateId,
+      copy_prompt_preset: templateId,
+      storyboard_granularity: STORYBOARD_GRANULARITIES.includes(els.storyboardGranularity?.value)
+        ? els.storyboardGranularity.value
+        : DEFAULT_STORYBOARD_GRANULARITY,
+      copy_prompt: els.copyPrompt.value,
+      copy_prompt_version: COPY_PROMPT_VERSION,
+      copy_to_story_prompt: els.copyToStoryPrompt?.value || "",
+      copy_to_story_prompt_version: COPY_TO_STORY_PROMPT_VERSION,
+      image_style_preset: els.imageStylePreset?.value || "short_video",
+      image_prompt: els.imagePrompt.value,
+      improve_image_prompt: els.improveImagePrompt?.value || "",
+      improve_image_prompt_version: IMPROVE_IMAGE_PROMPT_VERSION,
+      theme_idea_prompt: els.themeIdeaPrompt?.value || "",
+      theme_idea_prompt_version: THEME_IDEA_PROMPT_VERSION,
+      image_size: els.imageSize?.value || DEFAULT_IMAGE_SIZE,
+      intro_template: els.introTemplate?.value || "none",
+      intro_image_seconds: els.introImageSeconds?.value || "0.3",
+      tts_preset: els.ttsPreset?.value || "custom",
+      bgm_id: els.bgmSelect?.value || "none",
+      intro_sfx_id: els.introSfxSelect?.value || "default",
+    };
+  }
+
+  function scheduleSave() {
+    if (state.restoringProject || state.imageGenerationActive) return;
+    clearTimeout(state.saveTimer);
+    ui.setProjectMeta(state.currentProjectId || "未保存项目", "自动保存待处理");
+    state.saveTimer = window.setTimeout(saveNow, PROJECT_SAVE_DELAY_MS);
+  }
+
+  async function saveNow(options = {}) {
+    const { applyState = true, refreshProjects = true } = options;
+    if (state.restoringProject) return null;
+    try {
+      const data = await api.postJson("/api/project/current", projectState());
+      if (data.project_id) state.currentProjectId = data.project_id;
+      if (applyState && !state.imageGenerationActive && data.state) {
+        applyProjectState(data.state, { preserveTab: true, fromSave: true });
+      }
+      ui.setProjectMeta(state.currentProjectId, data.saved_at ? `自动保存 ${data.saved_at}` : "自动保存完成");
+      if (els.projectPicker && state.currentProjectId) els.projectPicker.value = state.currentProjectId;
+      if (refreshProjects) await loadList();
+      return data;
+    } catch (err) {
+      ui.setProjectMeta(state.currentProjectId || "自动保存失败", "自动保存失败");
+      console.warn("Project autosave failed", err);
+      return null;
+    }
+  }
+
+  function queueSave(options = {}) {
+    state.projectSaveQueue = state.projectSaveQueue
+      .catch(() => null)
+      .then(() => saveNow(options));
+    return state.projectSaveQueue;
+  }
+
+  function queueProgressSave(options = {}) {
+    const now = Date.now();
+    if (now - (state.lastProgressSaveAt || 0) < PROJECT_PROGRESS_SAVE_INTERVAL_MS) {
+      return state.projectSaveQueue;
+    }
+    state.lastProgressSaveAt = now;
+    return queueSave(options);
+  }
+
+  async function ensureSaved(options = {}) {
+    const data = await saveNow(options);
+    return data?.project_id || state.currentProjectId;
+  }
+
+  function mediaProjectId() {
+    return state.currentProjectId ? `projects/${state.currentProjectId}` : "";
+  }
+
+  function applyProjectState(projectStateData, options = {}) {
+    state.restoringProject = true;
+    state.imageGenerationActive = false;
+    if (state.activeImageJobs instanceof Map) state.activeImageJobs.clear();
+    state.currentProjectId = projectStateData.project_id || state.currentProjectId || "";
+    ui.setProjectMeta(
+      state.currentProjectId,
+      projectStateData.saved_at ? `${options.fromSave ? "自动保存" : "已恢复"} ${projectStateData.saved_at}` : "已恢复",
+    );
+    if (typeof projectStateData.topic === "string") els.topic.value = projectStateData.topic;
+    if (els.themeBrief && typeof projectStateData.theme_brief === "string") els.themeBrief.value = projectStateData.theme_brief;
+    if (els.themeIntro && typeof projectStateData.theme_intro === "string") els.themeIntro.value = projectStateData.theme_intro;
+    if (els.themeRevision && typeof projectStateData.theme_revision === "string") els.themeRevision.value = projectStateData.theme_revision;
+    if (els.topicMirror) els.topicMirror.textContent = els.topic.value || "未填写主题";
+    if (els.themeIntroMirror) els.themeIntroMirror.textContent = els.themeIntro?.value.trim() || "未填写主题介绍";
+    const restoredTemplate = projectStateData.template_id || projectStateData.copy_prompt_preset;
+    if (els.copyPromptPreset && typeof restoredTemplate === "string" && restoredTemplate) {
+      const preset = isKnownTemplate(restoredTemplate) ? restoredTemplate : defaultTemplateId();
+      els.copyPromptPreset.value = preset;
+      if (els.themeCopyPreset) els.themeCopyPreset.value = preset;
+      settings.setActiveCopyTemplate?.(preset);
+    }
+    if (typeof projectStateData.copy_text === "string") els.copyOutput.value = projectStateData.copy_text;
+    if (typeof projectStateData.copy_prompt === "string" && projectStateData.copy_prompt_version === COPY_PROMPT_VERSION) {
+      els.copyPrompt.value = projectStateData.copy_prompt;
+    }
+    if (
+      els.copyToStoryPrompt
+      && typeof projectStateData.copy_to_story_prompt === "string"
+      && projectStateData.copy_to_story_prompt_version === COPY_TO_STORY_PROMPT_VERSION
+    ) {
+      els.copyToStoryPrompt.value = projectStateData.copy_to_story_prompt;
+    }
+    if (els.storyboardGranularity) {
+      els.storyboardGranularity.value = STORYBOARD_GRANULARITIES.includes(projectStateData.storyboard_granularity)
+        ? projectStateData.storyboard_granularity
+        : DEFAULT_STORYBOARD_GRANULARITY;
+    }
+    if (els.imageStylePreset && typeof projectStateData.image_style_preset === "string") {
+      const exists = Array.from(els.imageStylePreset.options).some((option) => option.value === projectStateData.image_style_preset);
+      if (exists) els.imageStylePreset.value = projectStateData.image_style_preset;
+    }
+    if (typeof projectStateData.image_prompt === "string") els.imagePrompt.value = projectStateData.image_prompt;
+    settings.syncImageStylePresetPrompt?.(storyView.updatePromptMeta);
+    if (
+      els.improveImagePrompt
+      && typeof projectStateData.improve_image_prompt === "string"
+      && projectStateData.improve_image_prompt.trim()
+      && projectStateData.improve_image_prompt_version === IMPROVE_IMAGE_PROMPT_VERSION
+    ) {
+      els.improveImagePrompt.value = projectStateData.improve_image_prompt;
+    }
+    if (
+      els.themeIdeaPrompt
+      && typeof projectStateData.theme_idea_prompt === "string"
+      && projectStateData.theme_idea_prompt.trim()
+      && projectStateData.theme_idea_prompt_version === THEME_IDEA_PROMPT_VERSION
+    ) {
+      els.themeIdeaPrompt.value = projectStateData.theme_idea_prompt;
+    }
+    if (els.imageSize && typeof projectStateData.image_size === "string") {
+      els.imageSize.value = IMAGE_SIZES.includes(projectStateData.image_size)
+        ? projectStateData.image_size
+        : els.imageSize.value;
+    }
+    if (els.introTemplate && typeof projectStateData.intro_template === "string") {
+      els.introTemplate.value = INTRO_TEMPLATES.includes(projectStateData.intro_template)
+        ? projectStateData.intro_template
+        : DEFAULT_INTRO_TEMPLATE;
+    }
+    if (els.introImageSeconds && projectStateData.intro_image_seconds != null) {
+      els.introImageSeconds.value = String(projectStateData.intro_image_seconds || "0.3");
+    }
+    if (els.ttsPreset && typeof projectStateData.tts_preset === "string") els.ttsPreset.value = projectStateData.tts_preset;
+    if (els.bgmSelect && typeof projectStateData.bgm_id === "string") {
+      const exists = Array.from(els.bgmSelect.options).some((option) => option.value === projectStateData.bgm_id);
+      if (exists) els.bgmSelect.value = projectStateData.bgm_id;
+    }
+    if (els.introSfxSelect && typeof projectStateData.intro_sfx_id === "string") {
+      const exists = Array.from(els.introSfxSelect.options).some((option) => option.value === projectStateData.intro_sfx_id);
+      if (exists) els.introSfxSelect.value = projectStateData.intro_sfx_id;
+    }
+    if (typeof projectStateData.result_text === "string") els.result.textContent = projectStateData.result_text;
+    state.referenceAssets?.applyProjectState?.(projectStateData);
+    applyRenderedVideo(projectStateData.rendered_video || resultVideoUrl(projectStateData.result_text));
+    applyJianyingDraftAction(projectStateData.result_text);
+    const selectedShots = Array.isArray(projectStateData.selected_shots)
+      ? projectStateData.selected_shots
+      : Number.isInteger(projectStateData.selected_shot)
+        ? [projectStateData.selected_shot]
+        : [];
+    state.selectedShots = new Set(
+      selectedShots.map(Number).filter((index) => Number.isInteger(index) && index >= 0),
+    );
+
+    if (projectStateData.story && typeof projectStateData.story === "object") {
+      storyView.write(projectStateData.story, { scheduleSave: false });
+    } else if (typeof projectStateData.story_json === "string") {
+      els.editor.value = projectStateData.story_json;
+      storyView.updateMeta();
+      storyView.renderShotGrid();
+    }
+
+    storyView.updatePromptMeta();
+    if (!options.preserveTab) {
+      setActiveTab(["project", "auto", "assets", "theme", "copy", "image", "video", "settings"].includes(projectStateData.active_tab) ? projectStateData.active_tab : "theme");
+    }
+    state.restoringProject = false;
+    // 恢复项目/自动保存回填后主题、文案、分镜都换了，按钮可用性要跟着重算。
+    onStateApplied?.();
+  }
+
+  async function loadList() {
+    if (!els.projectPicker) return;
+    const data = await api.fetchJson("/api/projects").catch(() => null);
+    if (!data) return;
+    const projects = Array.isArray(data.projects) ? data.projects : [];
+    // 下拉框只放项目名（保存时间由旁边的「自动保存/已恢复」显示，避免同一个时间出现两遍）。
+    // 同名项目（比如多个「新项目」）用 id 末 6 位区分。
+    const names = projects.map((project) => project.topic || project.project_id);
+    const nameCounts = names.reduce((acc, name) => acc.set(name, (acc.get(name) || 0) + 1), new Map());
+    els.projectPicker.innerHTML = '<option value="">未保存项目</option>' + projects.map((project, index) => {
+      const name = names[index];
+      const label = nameCounts.get(name) > 1 ? `${name} · ${project.project_id.slice(-6)}` : name;
+      return `<option value="${escapeHtml(project.project_id)}">${escapeHtml(label)}</option>`;
+    }).join("");
+    els.projectPicker.value = state.currentProjectId || data.active_project_id || "";
+    if (els.projectGrid) {
+      els.projectGrid.innerHTML = projects.map((project) => {
+        const isActive = project.project_id === (state.currentProjectId || data.active_project_id || "");
+        return `
+          <article class="project-tile${isActive ? " active" : ""}">
+            <div class="project-tile-head">
+              <h2>${escapeHtml(project.topic || project.project_id)}</h2>
+              <span class="state-badge ${isActive ? "editing" : "done"}">${isActive ? "进行中" : "已保存"}</span>
+            </div>
+            <p>${escapeHtml(project.project_id)}</p>
+            <div class="project-tile-foot">
+              <span>${escapeHtml(project.saved_at || "未记录时间")}</span>
+              <div class="project-tile-actions">
+                <button class="secondary-pill" type="button" data-open-project="${escapeHtml(project.project_id)}">打开</button>
+                <button class="secondary-pill danger" type="button" data-delete-project="${escapeHtml(project.project_id)}">删除</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("") || '<div class="empty-state">暂无项目，先新建一个主题。</div>';
+    }
+  }
+
+  async function loadState(projectId = "") {
+    const data = projectId
+      ? await api.postJson("/api/project/activate", { project_id: projectId }).catch(() => null)
+      : await api.fetchJson("/api/project/current").catch(() => null);
+    if (projectId && data?.state) {
+      applyProjectState(data.state, { preserveTab: true });
+      await loadList();
+      return true;
+    }
+    if (!data?.exists || !data.state) return false;
+    applyProjectState(data.state);
+    return true;
+  }
+
+  async function activate(projectId) {
+    if (!projectId) return;
+    ui.setBusy(true);
+    ui.setStatus("切换项目", "busy");
+    try {
+      const data = await api.postJson("/api/project/activate", { project_id: projectId });
+      applyProjectState(data.state || {});
+      await loadList();
+      ui.setStatus("就绪");
+    } catch (err) {
+      ui.setStatus("出错", "error");
+      els.result.textContent = String(err.message || err);
+    } finally {
+      ui.setBusy(false);
+    }
+  }
+
+  async function remove(projectId) {
+    if (!projectId) return;
+    const confirmed = window.confirm("确定删除这个项目？删除后项目文件、图片、封面和渲染结果都会移除。");
+    if (!confirmed) return;
+    ui.setBusy(true);
+    ui.setStatus("删除项目", "busy");
+    try {
+      const wasActive = projectId === state.currentProjectId;
+      const data = await api.postJson("/api/project/delete", { project_id: projectId });
+      if (wasActive) {
+        createNew({ schedule: false });
+      }
+      await loadList();
+      if (els.projectPicker) els.projectPicker.value = state.currentProjectId || data.active_project_id || "";
+      ui.setStatus("就绪");
+    } catch (err) {
+      ui.setStatus("出错", "error");
+      els.result.textContent = String(err.message || err);
+    } finally {
+      ui.setBusy(false);
+    }
+  }
+
+  function createNew(options = {}) {
+    state.currentProjectId = "";
+    state.selectedShots = new Set();
+    state.imageGenerationActive = false;
+    state.activeAutoPipelineJob = null;
+    state.referenceCollectionId = "";
+    state.autoReferenceEnabled = false;
+    if (state.activeImageJobs instanceof Map) state.activeImageJobs.clear();
+    if (els.themeBrief) els.themeBrief.value = "";
+    if (els.themeIntro) els.themeIntro.value = "";
+    if (els.themeRevision) els.themeRevision.value = "";
+    els.topic.value = "新项目";
+    if (els.topicMirror) els.topicMirror.textContent = els.topic.value;
+    if (els.themeIntroMirror) els.themeIntroMirror.textContent = "未填写主题介绍";
+    settings.applyCopyPromptPreset?.(storyView.updatePromptMeta, () => {}, defaultTemplateId());
+    els.copyOutput.value = "";
+    els.result.textContent = "{}";
+    if (els.projectReferenceCollection) els.projectReferenceCollection.value = "";
+    if (els.autoReferenceEnabled) els.autoReferenceEnabled.checked = false;
+    applyRenderedVideo("");
+    storyView.write({ title: "", style_preset: "", shots: [] }, { scheduleSave: false });
+    storyView.updatePromptMeta();
+    ui.setProjectMeta("未保存项目", "自动保存开启");
+    if (els.projectPicker) els.projectPicker.value = "";
+    setActiveTab("theme");
+    settings.persist();
+    if (options.schedule !== false) scheduleSave();
+  }
+
+  return {
+    scheduleSave,
+    saveNow,
+    queueSave,
+    queueProgressSave,
+    ensureSaved,
+    mediaProjectId,
+    applyProjectState,
+    loadList,
+    loadState,
+    activate,
+    remove,
+    createNew,
+  };
+}

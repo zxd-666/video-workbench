@@ -1,0 +1,28 @@
+{
+  "id": "reality_reverse",
+  "label": "现实 · 反转压迫型",
+  "short_label": "反转压迫",
+  "category": "人生副本 · 现实",
+  "description": "用具体账目和规则变化，把现实生活写成一台停不下来的机器。",
+  "order": 10,
+  "opening": "带你体验100种人生副本。",
+  "theme": {
+    "label": "现实反转压迫型",
+    "domain": "现实职业、家庭关系、县城/城市生活、平台规则、收入成本和人际压力",
+    "direction": "主题要从期待、短暂回报，逐步走向规则压迫、账目窒息和无尽循环。",
+    "examples": "外卖骑手、县城宝妈、北漂程序员、房产中介、网约车司机、工厂夜班工。",
+    "avoid": "不要出现修仙、武侠、丧尸、异世界、赛博朋克、规则怪谈等超现实设定。"
+  },
+  "prompts": {
+    "copy": "prompts/copy_reality.md",
+    "copy_to_story": null,
+    "image_style": "prompts/image_style_life_copy.md",
+    "story_shots": "prompts/story_shots_life_copy.md"
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "life_copy_fast_cut",
+    "tts_preset": "male_fast"
+  }
+}

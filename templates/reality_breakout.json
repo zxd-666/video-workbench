@@ -1,0 +1,28 @@
+{
+  "id": "reality_breakout",
+  "label": "现实 · 理智破局型",
+  "short_label": "理智破局",
+  "category": "人生副本 · 现实",
+  "description": "主角隐忍计算、积累筹码，最后理智清算并完成跃迁。",
+  "order": 20,
+  "opening": "带你体验100种人生副本。",
+  "theme": {
+    "label": "现实理智破局型",
+    "domain": "现实职场、婚姻家庭、平台经济、生意合作、利益博弈和证据筹码",
+    "direction": "主题要适合写主角隐忍计算、暗中积累筹码、理智清算并完成跃迁。",
+    "examples": "被抢功劳的销售、被亲戚吸血的小老板、被平台压价的主播、被合伙人算计的创业者。",
+    "avoid": "不要写成无脑复仇、突然暴富、天降贵人或超现实世界观。"
+  },
+  "prompts": {
+    "copy": "prompts/copy_reality_breakout.md",
+    "copy_to_story": null,
+    "image_style": "prompts/image_style_life_copy.md",
+    "story_shots": "prompts/story_shots_life_copy.md"
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "life_copy_fast_cut",
+    "tts_preset": "male_fast"
+  }
+}

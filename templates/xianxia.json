@@ -1,0 +1,28 @@
+{
+  "id": "xianxia",
+  "label": "超现实 · 修仙型",
+  "short_label": "修仙",
+  "category": "人生副本 · 超现实",
+  "description": "把修仙世界写成一套可计算的生存系统，围绕资源和阶层压迫展开。",
+  "order": 50,
+  "opening": "带你体验100种人生副本。",
+  "theme": {
+    "label": "修仙型",
+    "domain": "宗门、散修、灵石债务、丹药成本、秘境名额、功法内卷、天劫和寿元折损",
+    "direction": "主题要把修仙世界写成一套可计算的生存系统，围绕修炼资源和阶层压迫展开。",
+    "examples": "背负灵石贷的外门弟子、给宗门炼丹还债的散修、被秘境KPI压垮的低阶修士。",
+    "avoid": "不要生成纯现实职业题，不要写成无脑龙傲天爽文或突然觉醒无敌血脉。"
+  },
+  "prompts": {
+    "copy": "prompts/copy_xianxia.md",
+    "copy_to_story": null,
+    "image_style": "prompts/image_style_life_copy.md",
+    "story_shots": "prompts/story_shots_life_copy.md"
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "life_copy_fast_cut",
+    "tts_preset": "male_fast"
+  }
+}

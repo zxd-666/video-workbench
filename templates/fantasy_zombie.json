@@ -1,0 +1,28 @@
+{
+  "id": "fantasy_zombie",
+  "label": "超现实 · 丧尸末日型",
+  "short_label": "丧尸末日",
+  "category": "人生副本 · 超现实",
+  "description": "资源稀缺、感染风险与信任崩塌，每个决定都要算风险收益。",
+  "order": 70,
+  "opening": "带你体验100种人生副本。",
+  "theme": {
+    "label": "丧尸末日型",
+    "domain": "末日庇护所、感染风险、物资配给、避难名额、巡逻任务、药品和信任崩塌",
+    "direction": "主题要围绕资源稀缺和生存代价展开，主角行动必须基于风险收益计算。",
+    "examples": "为了换抗感染药出城搜物资的人、被庇护所积分制度压榨的巡逻员、末日里的单亲父亲。",
+    "avoid": "不要写血腥细节，不要写成单纯打怪爽文或现实都市题。"
+  },
+  "prompts": {
+    "copy": "prompts/copy_fantasy_zombie.md",
+    "copy_to_story": null,
+    "image_style": "prompts/image_style_life_copy.md",
+    "story_shots": "prompts/story_shots_life_copy.md"
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "life_copy_fast_cut",
+    "tts_preset": "male_fast"
+  }
+}

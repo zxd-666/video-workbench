@@ -1,0 +1,28 @@
+{
+  "id": "fantasy_cyberpunk",
+  "label": "超现实 · 赛博异化型",
+  "short_label": "赛博异化",
+  "category": "人生副本 · 超现实",
+  "description": "科技外壳下的债务、监控和身体折旧，保持冷酷现实感。",
+  "order": 90,
+  "opening": "带你体验100种人生副本。",
+  "theme": {
+    "label": "赛博朋克型",
+    "domain": "义体贷款、数据公司、算法评分、黑市维修、脑机接口、城市分层和身份权限",
+    "direction": "主题要适合写科技外壳下的债务、监控和身体折旧，保持冷酷现实感。",
+    "examples": "背着义体贷的外包黑客、靠记忆出租还债的底层青年、被评分系统锁死的快递员。",
+    "avoid": "不要生成古风修仙或纯现实职业题，不要写成无脑科幻爽文。"
+  },
+  "prompts": {
+    "copy": "prompts/copy_fantasy_cyberpunk.md",
+    "copy_to_story": null,
+    "image_style": "prompts/image_style_life_copy.md",
+    "story_shots": "prompts/story_shots_life_copy.md"
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "life_copy_fast_cut",
+    "tts_preset": "male_fast"
+  }
+}

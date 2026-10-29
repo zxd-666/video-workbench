@@ -1,0 +1,28 @@
+{
+  "id": "fantasy_wuxia",
+  "label": "超现实 · 武侠江湖型",
+  "short_label": "武侠江湖",
+  "category": "人生副本 · 超现实",
+  "description": "江湖外壳下的生存账本，侠义、门规和银钱压力互相撕扯。",
+  "order": 60,
+  "opening": "带你体验100种人生副本。",
+  "theme": {
+    "label": "武侠江湖型",
+    "domain": "镖局、门派、武馆、江湖客栈、师门债、人情债、兵器折旧和江湖规矩",
+    "direction": "主题要适合写江湖外壳下的生存账本，侠义、门规和银钱压力互相撕扯。",
+    "examples": "给镖局还债的趟子手、被师门绑住的年轻刀客、靠卖命接单的落魄侠客。",
+    "avoid": "不要生成现代职场题，不要写成无成本快意恩仇。"
+  },
+  "prompts": {
+    "copy": "prompts/copy_fantasy_wuxia.md",
+    "copy_to_story": null,
+    "image_style": "prompts/image_style_life_copy.md",
+    "story_shots": "prompts/story_shots_life_copy.md"
+  },
+  "defaults": {
+    "image_size": "9:16",
+    "storyboard_granularity": "balanced",
+    "intro_template": "life_copy_fast_cut",
+    "tts_preset": "male_fast"
+  }
+}
